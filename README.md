@@ -15,7 +15,7 @@ Aplikasi Timer Olahraga adalah alat bantu interval training berbasis web untuk m
 * **`app.js`**: Modul logika yang menangani pengurangan waktu, perpindahan fase otomatis, pembaruan elemen antarmuka, dan mesin sintesis suara[cite: 1].
 
 ## Cara Penggunaan
-1. Buka `https://timer-olahraga-two.vercel.app/`.
+1. Buka https://timer-olahraga-two.vercel.app/.
 2. Tentukan "Waktu Total", "Waktu Olahraga", dan "Waktu Istirahat" pada panel pengaturan[cite: 2].
 3. Klik tombol **Mulai Sesi** untuk mengaktifkan timer[cite: 2].
 4. Ikuti instruksi di layar dan dengarkan peringatan audio untuk mengetahui kapan harus berlatih atau beristirahat[cite: 1].
