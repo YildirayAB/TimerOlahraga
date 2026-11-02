@@ -5,10 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Timer Olahraga</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32x32.png">
-  <link rel="shortcut icon" href="assets/favicon.ico" type="image/x-icon">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/logo.png">
 </head>
 <body>
+  <!-- Transition Countdown Overlay (rest → exercise) -->
+  <div id="transition-overlay" class="hidden">
+    <div id="transition-popup">
+      <div class="transition-icon">⚡</div>
+      <h2>Siap-siap buat set selanjutnya dalam...</h2>
+      <div class="transition-countdown-num" id="transition-countdown">10</div>
+      <div class="transition-bar">
+        <div class="transition-bar-fill" id="transition-bar-fill"></div>
+      </div>
+      <p class="transition-hint">Ambil posisi & bersiaplah! 🔥</p>
+    </div>
+  </div>
+
   <!-- Alarm Popup Overlay -->
   <div id="alarm-overlay" class="hidden">
     <div id="alarm-popup">
@@ -21,7 +33,9 @@
 
   <div class="container">
     <header>
-      <div class="logo">⏱️</div>
+      <div class="logo">
+           <img src="assets/logo.png" alt="Logo">
+      </div>
       <h1>Timer Olahraga</h1>
       <p class="subtitle">Atur sesi olahraga & istirahatmu</p>
     </header>
@@ -53,6 +67,14 @@
             <span class="unit">menit</span>
             <input type="number" id="rest-seconds" min="0" max="59" value="0" />
             <span class="unit">detik</span>
+          </div>
+        </div>
+        <div class="setting-group">
+          <label for="transition-seconds">⚡ Waktu Transisi <span class="label-sub">(Istirahat → Olahraga)</span></label>
+          <div class="input-row">
+            <input type="number" id="transition-seconds" min="0" max="60" value="10" />
+            <span class="unit">detik</span>
+            <span class="unit-note">· isi 0 untuk nonaktifkan</span>
           </div>
         </div>
       </div>

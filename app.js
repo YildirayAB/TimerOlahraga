@@ -150,6 +150,74 @@ function stopAlarmSound() {
   }
 }
 
+// ------------------------------------------------------------------
+// ⚡  RISING WHOOSH — selama countdown transisi istirahat → olahraga
+//     3 lapis: low rumble naik, mid harmonic sweep, high shimmer
+//     yang fade in di paruh akhir.
+// ------------------------------------------------------------------
+let whooshNodes = [];
+
+function playRisingWhoosh(durationSec) {
+  stopWhoosh();
+  const ctx = getAudioCtx();
+  const t   = ctx.currentTime;
+  const dur = Math.max(durationSec, 0.5);
+
+  // --- Layer 1: Low rumble (sawtooth + lowpass) — naik dari 55Hz ke 440Hz ---
+  const osc1 = ctx.createOscillator();
+  const lp   = ctx.createBiquadFilter();
+  const g1   = ctx.createGain();
+  osc1.connect(lp); lp.connect(g1); g1.connect(ctx.destination);
+  osc1.type = 'sawtooth';
+  osc1.frequency.setValueAtTime(55,  t);
+  osc1.frequency.exponentialRampToValueAtTime(440, t + dur * 0.92);
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(180, t);
+  lp.frequency.exponentialRampToValueAtTime(3200, t + dur * 0.92);
+  g1.gain.setValueAtTime(0.02, t);
+  g1.gain.linearRampToValueAtTime(0.30, t + dur * 0.82);
+  g1.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
+  osc1.start(t); osc1.stop(t + dur + 0.15);
+  whooshNodes.push(osc1);
+
+  // --- Layer 2: Mid harmonic sweep (sine + bandpass) ---
+  const osc2 = ctx.createOscillator();
+  const bp   = ctx.createBiquadFilter();
+  const g2   = ctx.createGain();
+  osc2.connect(bp); bp.connect(g2); g2.connect(ctx.destination);
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(110, t);
+  osc2.frequency.exponentialRampToValueAtTime(880, t + dur * 0.92);
+  bp.type = 'bandpass';
+  bp.frequency.setValueAtTime(200, t);
+  bp.frequency.exponentialRampToValueAtTime(1600, t + dur * 0.92);
+  bp.Q.value = 2.5;
+  g2.gain.setValueAtTime(0.01, t);
+  g2.gain.linearRampToValueAtTime(0.20, t + dur * 0.78);
+  g2.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
+  osc2.start(t); osc2.stop(t + dur + 0.15);
+  whooshNodes.push(osc2);
+
+  // --- Layer 3: High shimmer (triangle) — fade in di 50% terakhir ---
+  const osc3 = ctx.createOscillator();
+  const g3   = ctx.createGain();
+  osc3.connect(g3); g3.connect(ctx.destination);
+  osc3.type = 'triangle';
+  osc3.frequency.setValueAtTime(440, t + dur * 0.5);
+  osc3.frequency.exponentialRampToValueAtTime(1760, t + dur * 0.94);
+  g3.gain.setValueAtTime(0, t);
+  g3.gain.setValueAtTime(0, t + dur * 0.50);
+  g3.gain.linearRampToValueAtTime(0.14, t + dur * 0.85);
+  g3.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
+  osc3.start(t + dur * 0.5); osc3.stop(t + dur + 0.15);
+  whooshNodes.push(osc3);
+}
+
+function stopWhoosh() {
+  whooshNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+  whooshNodes = [];
+}
+
 // ========== STATE ==========
 let mainTotalSec   = 0;  // total main timer in seconds
 let mainRemainSec  = 0;  // remaining main timer seconds
@@ -165,6 +233,11 @@ let totalSets      = 0;
 let paused         = false;
 let running        = false;
 let mainIntervalId = null;
+
+// Transition state (rest → exercise countdown)
+let transitionTotalSec  = 0;
+let transitionRemainSec = 0;
+let inTransition        = false;
 
 // ========== DOM REFS ==========
 const settingsPanel       = document.getElementById('settings-panel');
@@ -183,6 +256,9 @@ const pauseBtn            = document.getElementById('pause-btn');
 const setNumberEl         = document.getElementById('set-number');
 const totalSetsEl         = document.getElementById('total-sets');
 const alarmOverlay        = document.getElementById('alarm-overlay');
+const transitionOverlay   = document.getElementById('transition-overlay');
+const transitionCountdown = document.getElementById('transition-countdown');
+const transitionBarFill   = document.getElementById('transition-bar-fill');
 
 // ========== HELPERS ==========
 function fmtTime(sec) {
@@ -232,29 +308,32 @@ function updatePhaseUI() {
 
 // ========== MAIN LOGIC ==========
 function startSession() {
-  const mainMin  = parseInt(document.getElementById('main-minutes').value)   || 30;
+  const mainMin  = parseInt(document.getElementById('main-minutes').value)    || 30;
   const exMin    = parseInt(document.getElementById('exercise-minutes').value) || 0;
   const exSec    = parseInt(document.getElementById('exercise-seconds').value) || 0;
-  const restMin  = parseInt(document.getElementById('rest-minutes').value)    || 0;
-  const restSec  = parseInt(document.getElementById('rest-seconds').value)    || 0;
+  const restMin  = parseInt(document.getElementById('rest-minutes').value)     || 0;
+  const restSec  = parseInt(document.getElementById('rest-seconds').value)     || 0;
+  const transSec = parseInt(document.getElementById('transition-seconds').value) || 0;
 
-  exerciseTotalSec = exMin * 60 + exSec;
-  restTotalSec     = restMin * 60 + restSec;
-  mainTotalSec     = mainMin * 60;
-  mainRemainSec    = mainTotalSec;
+  exerciseTotalSec  = exMin * 60 + exSec;
+  restTotalSec      = restMin * 60 + restSec;
+  mainTotalSec      = mainMin * 60;
+  mainRemainSec     = mainTotalSec;
+  transitionTotalSec = Math.max(0, transSec);
 
   if (exerciseTotalSec === 0) { alert('Waktu olahraga harus lebih dari 0!'); return; }
   if (restTotalSec === 0)     { alert('Waktu istirahat harus lebih dari 0!'); return; }
 
-  const cycleLen = exerciseTotalSec + restTotalSec;
+  const cycleLen = exerciseTotalSec + restTotalSec + transitionTotalSec;
   totalSets = Math.floor(mainTotalSec / cycleLen);
 
-  phase      = 'exercise';
-  setNumber  = 1;
-  subRemainSec = exerciseTotalSec;
-  subTotalSec  = exerciseTotalSec;
-  paused     = false;
-  running    = true;
+  phase           = 'exercise';
+  setNumber       = 1;
+  subRemainSec    = exerciseTotalSec;
+  subTotalSec     = exerciseTotalSec;
+  inTransition    = false;
+  paused          = false;
+  running         = true;
 
   // Wake AudioContext on user gesture
   getAudioCtx().resume();
@@ -270,9 +349,70 @@ function startSession() {
   mainIntervalId = setInterval(tick, 1000);
 }
 
+// ---------- Transition helpers ----------
+function startTransition() {
+  inTransition        = true;
+  transitionRemainSec = transitionTotalSec;
+
+  // Show popup & play whoosh for the full countdown duration
+  transitionOverlay.classList.remove('hidden');
+  updateTransitionDisplay();
+  playRisingWhoosh(transitionTotalSec);
+}
+
+function updateTransitionDisplay() {
+  transitionCountdown.textContent = transitionRemainSec;
+  const pct = transitionTotalSec > 0
+    ? ((transitionTotalSec - transitionRemainSec) / transitionTotalSec) * 100
+    : 100;
+  transitionBarFill.style.width = pct + '%';
+}
+
+function endTransition() {
+  inTransition = false;
+  stopWhoosh();
+  transitionOverlay.classList.add('hidden');
+
+  // Switch to exercise and fire fight sound
+  phase        = 'exercise';
+  subRemainSec = exerciseTotalSec;
+  subTotalSec  = exerciseTotalSec;
+  setNumber++;
+  playFightTransition();   // 💪 LET'S GO!
+  updatePhaseUI();
+  updateSubDisplay();
+}
+
+// ---------- Main tick ----------
 function tick() {
   if (paused || !running) return;
 
+  // ---- Transition countdown branch ----
+  if (inTransition) {
+    mainRemainSec--;
+    transitionRemainSec--;
+    updateMainDisplay();
+    updateTransitionDisplay();
+
+    // Main timer ran out during transition
+    if (mainRemainSec <= 0) {
+      mainRemainSec = 0;
+      updateMainDisplay();
+      clearInterval(mainIntervalId);
+      running = false;
+      stopWhoosh();
+      transitionOverlay.classList.add('hidden');
+      triggerAlarm();
+      return;
+    }
+
+    if (transitionRemainSec <= 0) {
+      endTransition();
+    }
+    return;
+  }
+
+  // ---- Normal sub-timer branch ----
   // Countdown ticks for last 3s of sub-timer
   if (subRemainSec <= 3 && subRemainSec > 0) playTick();
 
@@ -296,20 +436,26 @@ function tick() {
   if (subRemainSec <= 0) {
     if (phase === 'exercise') {
       // Exercise set selesai → masuk istirahat
-      phase = 'rest';
+      phase        = 'rest';
       subRemainSec = restTotalSec;
       subTotalSec  = restTotalSec;
-      playRestTransition();       // 😴 Suara: "napas dulu, istirahat"
+      playRestTransition();   // 😴 Napas dulu
+      updatePhaseUI();
+      updateSubDisplay();
     } else {
-      // Istirahat selesai → balik olahraga
-      phase = 'exercise';
-      subRemainSec = exerciseTotalSec;
-      subTotalSec  = exerciseTotalSec;
-      setNumber++;
-      playFightTransition();      // 💪 Suara: "ayo bangkit, berjuang lagi!"
+      // Istirahat selesai → transisi atau langsung olahraga
+      if (transitionTotalSec > 0) {
+        startTransition();    // ⚡ Whoosh + countdown popup
+      } else {
+        phase        = 'exercise';
+        subRemainSec = exerciseTotalSec;
+        subTotalSec  = exerciseTotalSec;
+        setNumber++;
+        playFightTransition(); // 💪 LET'S GO!
+        updatePhaseUI();
+        updateSubDisplay();
+      }
     }
-    updatePhaseUI();
-    updateSubDisplay();
   }
 }
 
@@ -321,18 +467,21 @@ function togglePause() {
 function resetSession() {
   clearInterval(mainIntervalId);
   stopAlarmSound();
-  running = false;
-  paused  = false;
+  stopWhoosh();
+  running      = false;
+  paused       = false;
+  inTransition = false;
   timerPanel.classList.add('hidden');
   settingsPanel.classList.remove('hidden');
   alarmOverlay.classList.add('hidden');
+  transitionOverlay.classList.add('hidden');
   // reset displays
-  mainDisplay.textContent     = '00:00';
-  exerciseDisplay.textContent = '00:00';
-  restDisplay.textContent     = '00:00';
-  mainProgress.style.width    = '100%';
+  mainDisplay.textContent      = '00:00';
+  exerciseDisplay.textContent  = '00:00';
+  restDisplay.textContent      = '00:00';
+  mainProgress.style.width     = '100%';
   exerciseProgress.style.width = '0%';
-  restProgress.style.width    = '0%';
+  restProgress.style.width     = '0%';
   pauseBtn.textContent = '⏸ Jeda';
 }
 
