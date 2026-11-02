@@ -2,65 +2,148 @@
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
 let alarmIntervalId = null;
+let alarmTimeoutId  = null;
 
 function getAudioCtx() {
   if (!audioCtx) audioCtx = new AudioCtx();
   return audioCtx;
 }
 
-/** Play a short "ding" beep */
-function playBeep(freq = 880, duration = 0.15, vol = 0.5, type = 'sine', delay = 0) {
+/**
+ * Low-level: play a single oscillator note.
+ * @param {number} freq        - frequency in Hz
+ * @param {number} duration    - duration in seconds
+ * @param {number} vol         - peak volume (0–1)
+ * @param {string} type        - OscillatorType ('sine'|'square'|'sawtooth'|'triangle')
+ * @param {number} delay       - start offset from now in seconds
+ * @param {number} [freqEnd]   - if set, sweep frequency to this value over duration
+ * @param {number} [attackTime]- seconds to reach peak volume (default 0.01)
+ */
+function playNote(freq, duration, vol, type, delay, freqEnd, attackTime = 0.01) {
   const ctx = getAudioCtx();
+  const t   = ctx.currentTime + delay;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
   gain.connect(ctx.destination);
   osc.type = type;
-  osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
-  gain.gain.setValueAtTime(0, ctx.currentTime + delay);
-  gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + delay + 0.01);
-  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + duration);
-  osc.start(ctx.currentTime + delay);
-  osc.stop(ctx.currentTime + delay + duration + 0.05);
-}
-
-/** Play a 3-tone transition beep (phase change) */
-function playTransitionBeep() {
-  playBeep(523, 0.12, 0.5, 'sine', 0.0);
-  playBeep(659, 0.12, 0.5, 'sine', 0.13);
-  playBeep(784, 0.20, 0.6, 'sine', 0.26);
-}
-
-/** Play a countdown tick (last 3 seconds) */
-function playTick() {
-  playBeep(440, 0.08, 0.3, 'square', 0);
-}
-
-/** Start looping alarm sound */
-function startAlarmSound() {
-  stopAlarmSound(); // clear any existing
-  function playAlarmCycle() {
-    // Siren-like up-down sweep
-    const ctx = getAudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(400, ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(900, ctx.currentTime + 0.5);
-    osc.frequency.linearRampToValueAtTime(400, ctx.currentTime + 1.0);
-    gain.gain.setValueAtTime(0.35, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.05);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 1.1);
+  osc.frequency.setValueAtTime(freq, t);
+  if (freqEnd !== undefined) {
+    osc.frequency.linearRampToValueAtTime(freqEnd, t + duration);
   }
-  playAlarmCycle();
-  alarmIntervalId = setInterval(playAlarmCycle, 1200);
+  gain.gain.setValueAtTime(0, t);
+  gain.gain.linearRampToValueAtTime(vol, t + attackTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+  osc.start(t);
+  osc.stop(t + duration + 0.05);
+}
+
+// ------------------------------------------------------------------
+// 🏁  MAIN TIMER DONE — Victory / "Perjuangan hari ini selesai!"
+//     Triumphant ascending fanfare: C → E → G → C (major chord arpeggiated),
+//     lalu diakhiri held chord dengan vibrato shimmer.
+// ------------------------------------------------------------------
+function playVictoryFanfare() {
+  // === Arpeggiated fanfare notes ===
+  // C5 – E5 – G5 – C6 (naik dramatis)
+  playNote(523,  0.18, 0.55, 'sine',     0.00);
+  playNote(659,  0.18, 0.55, 'sine',     0.20);
+  playNote(784,  0.18, 0.55, 'sine',     0.40);
+  playNote(1047, 0.40, 0.65, 'sine',     0.60);
+
+  // === Held triumphant chord (C5+E5+G5 together) ===
+  playNote(523,  0.90, 0.30, 'sine',     1.10);
+  playNote(659,  0.90, 0.30, 'sine',     1.10);
+  playNote(784,  0.90, 0.35, 'sine',     1.10);
+
+  // === Sub-bass thud untuk feel "epic finish" ===
+  playNote(65,   0.25, 0.40, 'triangle', 0.60);
+  playNote(65,   0.18, 0.30, 'triangle', 1.10);
+
+  // === Shimmer high overtone ===
+  playNote(2093, 0.60, 0.12, 'sine',     1.10);
+}
+
+// ------------------------------------------------------------------
+// 😴  EXERCISE SET DONE → REST — "Napas dulu, istirahat sebentar"
+//     Nada turun lembut, airy & smooth — kayak lega setelah berjuang.
+// ------------------------------------------------------------------
+function playRestTransition() {
+  // Descending gentle tones: G5 → E5 → C5
+  playNote(784,  0.28, 0.42, 'sine',     0.00);
+  playNote(659,  0.28, 0.38, 'sine',     0.32);
+  playNote(523,  0.55, 0.35, 'sine',     0.64);
+
+  // Soft airy shimmer chord (high, quiet)
+  playNote(1047, 0.70, 0.10, 'sine',     0.64);
+  playNote(1319, 0.70, 0.07, 'sine',     0.64);
+
+  // Gentle "exhale" low pad
+  playNote(130,  0.80, 0.15, 'triangle', 0.64);
+}
+
+// ------------------------------------------------------------------
+// 💪  REST SET DONE → EXERCISE — "Ayo bangkit, waktunya berjuang lagi!"
+//     Nada naik energetik, punchy, kayak "LET'S GO!"
+// ------------------------------------------------------------------
+function playFightTransition() {
+  // Punchy bass hit dulu
+  playNote(98,   0.12, 0.50, 'sawtooth', 0.00);
+
+  // Rapid ascending stabs: C4 → G4 → C5 → E5 → G5
+  playNote(262,  0.10, 0.50, 'square',   0.15);
+  playNote(392,  0.10, 0.55, 'square',   0.27);
+  playNote(523,  0.12, 0.60, 'square',   0.39);
+  playNote(659,  0.12, 0.60, 'square',   0.51);
+  playNote(784,  0.30, 0.65, 'square',   0.63);
+
+  // Final power chord hold (G4+C5+E5)
+  playNote(392,  0.55, 0.28, 'sine',     0.93);
+  playNote(523,  0.55, 0.28, 'sine',     0.93);
+  playNote(659,  0.55, 0.30, 'sine',     0.93);
+
+  // Punchy bass end hit
+  playNote(98,   0.18, 0.45, 'triangle', 0.93);
+}
+
+// ------------------------------------------------------------------
+// ⏱  COUNTDOWN TICK — last 3 seconds of any sub-timer
+// ------------------------------------------------------------------
+function playTick() {
+  playNote(880, 0.06, 0.25, 'square', 0);
+}
+
+// ------------------------------------------------------------------
+// 🚨  MAIN ALARM — loops until dismissed (Victory fanfare plays first,
+//     then a looping triumphant pulse keeps reminding)
+// ------------------------------------------------------------------
+function startAlarmSound() {
+  stopAlarmSound();
+
+  // Play full victory fanfare first
+  playVictoryFanfare();
+
+  // After fanfare (~2.2s), start looping reminder pulse
+  alarmTimeoutId = setTimeout(() => {
+    function loopCycle() {
+      // Triumphant rising 2-note pulse
+      playNote(784,  0.20, 0.45, 'sine', 0.00);
+      playNote(1047, 0.30, 0.50, 'sine', 0.22);
+
+      // Bass thud
+      playNote(65, 0.18, 0.35, 'triangle', 0.00);
+    }
+    loopCycle();
+    alarmIntervalId = setInterval(loopCycle, 1400);
+  }, 2300);
 }
 
 /** Stop looping alarm sound */
 function stopAlarmSound() {
+  if (alarmTimeoutId !== null) {
+    clearTimeout(alarmTimeoutId);
+    alarmTimeoutId = null;
+  }
   if (alarmIntervalId !== null) {
     clearInterval(alarmIntervalId);
     alarmIntervalId = null;
@@ -212,16 +295,18 @@ function tick() {
   // Sub-timer done → switch phase
   if (subRemainSec <= 0) {
     if (phase === 'exercise') {
+      // Exercise set selesai → masuk istirahat
       phase = 'rest';
       subRemainSec = restTotalSec;
       subTotalSec  = restTotalSec;
-      playTransitionBeep();
+      playRestTransition();       // 😴 Suara: "napas dulu, istirahat"
     } else {
+      // Istirahat selesai → balik olahraga
       phase = 'exercise';
       subRemainSec = exerciseTotalSec;
       subTotalSec  = exerciseTotalSec;
       setNumber++;
-      playTransitionBeep();
+      playFightTransition();      // 💪 Suara: "ayo bangkit, berjuang lagi!"
     }
     updatePhaseUI();
     updateSubDisplay();
