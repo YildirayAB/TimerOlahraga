@@ -11,7 +11,7 @@
   --accent-red: #ff4d6d;
   --accent-purple: #a855f7;
   --text: #e8eaf6;
-  --text-muted: #8891b2;
+  --text-muted: #a4adcf;
   --radius: 18px;
   --shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
@@ -90,7 +90,7 @@ h1 {
   margin-bottom: 24px;
 }
 
-.setting-group label {
+.setting-group label, .setting-label-title {
   display: block;
   font-size: 0.85rem;
   font-weight: 600;
@@ -357,7 +357,6 @@ h1 {
 .unit-note {
   font-size: 0.75rem;
   color: var(--text-muted);
-  opacity: 0.75;
 }
 
 /* ===== ALARM OVERLAY ===== */
