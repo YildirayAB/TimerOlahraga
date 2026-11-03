@@ -66,21 +66,28 @@ function playVictoryFanfare() {
 
 // ------------------------------------------------------------------
 // 😴  EXERCISE SET DONE → REST — "Napas dulu, istirahat sebentar"
-//     Nada turun lembut, airy & smooth — kayak lega setelah berjuang.
-//     Volume dinaikkan supaya lebih jelas terdengar.
+//     Struktur mirip FightTransition (bass punch + 5 nada naik + power chord)
+//     tapi pakai sine/triangle biar kalem & smooth, volume tetap tajam.
 // ------------------------------------------------------------------
 function playRestTransition() {
-  // Descending tones: G5 → E5 → C5 (volume dinaikkan)
-  playNote(784,  0.30, 0.80, 'sine',     0.00);
-  playNote(659,  0.30, 0.75, 'sine',     0.34);
-  playNote(523,  0.60, 0.70, 'sine',     0.68);
+  // Soft bass punch (triangle, bukan sawtooth — lebih kalem)
+  playNote(98,   0.14, 0.55, 'triangle', 0.00);
 
-  // Shimmer chord (high) — volume dinaikkan
-  playNote(1047, 0.75, 0.30, 'sine',     0.68);
-  playNote(1319, 0.75, 0.22, 'sine',     0.68);
+  // 5 nada naik cepat: C4 → G4 → C5 → E5 → G5
+  // pakai sine biar halus tapi tetap tajam & jelas
+  playNote(262,  0.10, 0.60, 'sine', 0.15);
+  playNote(392,  0.10, 0.62, 'sine', 0.27);
+  playNote(523,  0.12, 0.65, 'sine', 0.39);
+  playNote(659,  0.12, 0.65, 'sine', 0.51);
+  playNote(784,  0.32, 0.68, 'sine', 0.63);
 
-  // "Exhale" low pad — volume dinaikkan
-  playNote(130,  0.85, 0.45, 'triangle', 0.68);
+  // Power chord hold (G4 + C5 + E5) — sine, lembut tapi terdengar jelas
+  playNote(392,  0.85, 0.42, 'sine',     0.95);
+  playNote(523,  0.85, 0.42, 'sine',     0.95);
+  playNote(659,  0.85, 0.45, 'sine',     0.95);
+
+  // Bass pad akhir
+  playNote(98,   0.20, 0.40, 'triangle', 0.95);
 }
 
 // ------------------------------------------------------------------
