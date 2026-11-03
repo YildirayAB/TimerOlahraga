@@ -67,19 +67,20 @@ function playVictoryFanfare() {
 // ------------------------------------------------------------------
 // 😴  EXERCISE SET DONE → REST — "Napas dulu, istirahat sebentar"
 //     Nada turun lembut, airy & smooth — kayak lega setelah berjuang.
+//     Volume dinaikkan supaya lebih jelas terdengar.
 // ------------------------------------------------------------------
 function playRestTransition() {
-  // Descending gentle tones: G5 → E5 → C5
-  playNote(784,  0.28, 0.42, 'sine',     0.00);
-  playNote(659,  0.28, 0.38, 'sine',     0.32);
-  playNote(523,  0.55, 0.35, 'sine',     0.64);
+  // Descending tones: G5 → E5 → C5 (volume dinaikkan)
+  playNote(784,  0.30, 0.80, 'sine',     0.00);
+  playNote(659,  0.30, 0.75, 'sine',     0.34);
+  playNote(523,  0.60, 0.70, 'sine',     0.68);
 
-  // Soft airy shimmer chord (high, quiet)
-  playNote(1047, 0.70, 0.10, 'sine',     0.64);
-  playNote(1319, 0.70, 0.07, 'sine',     0.64);
+  // Shimmer chord (high) — volume dinaikkan
+  playNote(1047, 0.75, 0.30, 'sine',     0.68);
+  playNote(1319, 0.75, 0.22, 'sine',     0.68);
 
-  // Gentle "exhale" low pad
-  playNote(130,  0.80, 0.15, 'triangle', 0.64);
+  // "Exhale" low pad — volume dinaikkan
+  playNote(130,  0.85, 0.45, 'triangle', 0.68);
 }
 
 // ------------------------------------------------------------------
@@ -305,6 +306,18 @@ function updatePhaseUI() {
   setNumberEl.textContent = setNumber;
   totalSetsEl.textContent = totalSets > 0 ? totalSets : '~';
 }
+
+// ========== INPUT GUARD: kosong → otomatis 0 ==========
+document.addEventListener('DOMContentLoaded', () => {
+  const numInputs = document.querySelectorAll('input[type="number"]');
+  numInputs.forEach(input => {
+    input.addEventListener('blur', () => {
+      if (input.value === '') {
+        input.value = 0;
+      }
+    });
+  });
+});
 
 // ========== MAIN LOGIC ==========
 function startSession() {
