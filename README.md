@@ -1,4 +1,4 @@
-# Timer Olahraga ⏱️
+# Timer Olahraga
 
 Aplikasi Timer Olahraga adalah alat bantu interval training berbasis web untuk mengatur siklus latihan dan istirahat secara otomatis. Proyek ini dibangun menggunakan HTML, CSS, dan Vanilla JavaScript murni tanpa dependensi eksternal.
 
